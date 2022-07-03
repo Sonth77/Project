@@ -1,0 +1,239 @@
+---
+title: "Explicación y comentarios del codigo"
+author: "Yefri"
+date: "2/7/2022"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## IMPORTACIÓN, ORGANIZACIÓN Y FILTRADO DE LOS DATA FRAMES
+
+En primer lugar, se procede a llamar las siguientes librerias, las cuales serviran para el desarrollo en la manipulación de datos, tablas y graficas necesarias para el analisis estadistico de los datos: 
+```{r}
+library(ggplot2)
+library(dplyr)
+library(openxlsx)
+library(gganimate)
+library(gifski)
+library(nortest)
+library(readxl)
+library(printr)
+library(knitr)
+```
+Posteriormente se importan los data frame necesarios; cabe mencionar que la importación se realizó de forma manual, por lo que al momento de usted realizar este proceso puede efectuarlo de esta forma, o puede usar un metodo mas confiable.
+Independientemente de la función que realice, aclaramos que los data frame deben ser guardados en las siguientes variables:
+CARGAMOS EL ARCHIVO DEL AREA CULTIVADA COMO AreaTD ubicado en la segunda hoja del archivo .xlsx llamado Precios_Areas_Prod.
+CARGAMOS EL ARCHIVO DEL PRODUCCIÓN COMO Prod ubicado en la tercera hoja del archivo .xlsx llamado Precios_Areas_Prod.
+CARGAMOS EL ARCHIVO DEL EXPORTACION COMO Exp ubicado en la cuarta hoja del archivo .xlsx llamado Precios_Areas_Prod.
+
+Por lo que su importación queda registrada de la siguiente forma:
+```{r}
+Prod <- read_excel("~/UNI. NACIONAL/Cuarto semestre/Programación Estadistica/Proyecto/Precios_Areas_Prod.xlsx",
+sheet = "Produ_mes")
+AreaTD <- read_excel("~/UNI. NACIONAL/Cuarto semestre/Programación Estadistica/Proyecto/Precios_Areas_Prod.xlsx",
+sheet = "Area_cultivada")
+Exp <- read_excel("~/UNI. NACIONAL/Cuarto semestre/Programación Estadistica/Proyecto/Precios_Areas_Prod.xlsx",
+sheet = "Exp")
+
+```
+Seguidamente, procedemos a manipular los data frames para filtrar, ordenar y resumir los datos para su posterior manipulación.
+En el caso de la producción se incluye un nueva columna de solo años, y se agrupan y filtran los datos en base a esta, resumiendolos en promedios.
+```{r}
+Prod<-within(Prod,year<-format(Mes,format="%Y"))
+prdT<-Prod%>%select(year,Production)%>%
+filter(year>="2002")%>%group_by(year)%>% summarise("production"=mean(Production))
+```
+
+Para el area, se seleccionan las columnas de interes, que son todos los años y se hace un resumen de estas por la sumatoria. Dando como resultado un data frame de 1x20, sin contar los nombres de las columnas. Por lo que en un nuevo data frame se realizará la transpuesta de esta dimesión, guardandose en una nueva variable: Art
+```{r}
+AreaTD1=AreaTD[-24,]
+ArT<-AreaTD1 %>% select(`2002`,`2003`,`2004`,`2005`,`2006`,`2007`,`2008`,
+`2009`,`2010*`,`2011*`,`2012*`,`2013*`,`2014*`,`2015*`,`2016*`,
+`2017*`,`2018*`,`2019*`,`2020*`,`2021*`)%>%
+summarise("2002"=sum(`2002`),"2003"=sum(`2003`),"2004"=sum(`2004`),"2005"=sum(`2005`),
+"2006"=sum(`2006`),"2007"=sum(`2007`),"2008"=sum(`2008`),"2009"=sum(`2009`),
+"2010"=sum(`2010*`),"2011"=sum(`2011*`),"2012"=sum(`2012*`),"2013"=sum(`2013*`),
+"2014"=sum(`2014*`),"2015"=sum(`2015*`),"2016"=sum(`2016*`),"2017"=sum(`2017*`),
+"2018"=sum(`2018*`),"2019"=sum(`2019*`),"2020"=sum(`2020*`),"2021"=sum(`2021*`))
+
+Art<- data.frame("year"=c(2002:2021), "Area"=c(as.numeric(ArT[1,])))
+
+Art$production=prdT$production
+```
+
+Para proyectar los resultados de la exportación de café, primero se realiza una modificación en el formato de datos de la columna mes, para que, eventualmente los datos puedan ser manipulados y filtrados de una mejor forma.
+```{r}
+Exp<-within(Exp,year<-format(MES,format="%Y"))
+```
+
+De esta forma, realizamos un filtro en todos los datos para ver sus resultados de manera resumida por su media:
+```{r}
+ExpT<-Exp%>%select(year,`Total Exportaciones`)%>%
+filter(year>="2002")%>%group_by(year)%>% summarise("Export"=mean(`Total Exportaciones`))
+```
+
+A continuación, realizamos un proceso similar al anterior de la producción, solo que en esta ocasión los datos estaran resumidos por la sumatoria, esto para los posteriores analisis:
+
+```{r}
+prdT1<-Prod%>%select(year,Production)%>%
+  filter(year>="2002")%>%group_by(year)%>% summarise("production"=sum(Production))
+
+Art<- data.frame("year"=c(2002:2021), "Area"=c(as.numeric(ArT[1,])))
+Art$production=prdT1$production
+Art1=Art
+Art1<-within(Art1,'Bultos/Hectareas(p/a)'<-Art1$production/Art1$Area)
+```
+###TABLAS
+Una vez realizado el punto anterior, se procede a realizar las tablas de los resultados de todo el filtrado, haciendo uso de la función ```kable()```.
+
+La siguiente tabla muestra los resultados por año de la extención en el espacio geografico requerido para el cultivo de café entre los años 2002 al 2022:
+```{r}
+kable(AreaTD[,c(1:4,17:21)],align='c',caption="Tabla resumida del area de cultivo por departamento")
+```
+
+La siguiente tabla muestra los resultados por producción expresado en miles de bultos de café de 60 kg entre los años 2002 al 2022:
+```{r}
+kable(prdT1,align='c',caption="Tabla de producción de miles de bultos de 60 kg entre 2002-2021")
+```
+
+
+
+La siguiente tabla muestra los resultados de la exportación en miles de bultos de café de 60 kg entre los años 2002 al 2022:
+```{r}
+kable(ExpT,align='c',caption="Exportación del cafe por miles de bultos de 60 kg 2002-2021")
+```
+
+
+###HERRAMIENTAS ESTADISTICAS UTILIZADAS
+En primer lugar, realizamos este codigo para dejar dos columnas y que al momento de proyectar el diagrama lineal, se puediera ver las dos lineas y us puntos de coordenadas en una misma grafica. La función usada es ```ggplot()```.
+
+```{r}
+Art$production=prdT$production
+vec<-c(2002:2021)
+vec[1:20]="production"
+vecA<-c(2002:2021)
+vecA[1:20]="area"
+p1<-data.frame("year"=Art$year,"Valor"=Art$production, "Tipo"=vec)
+p2<-data.frame("year"=Art$year,"Valor"=Art$Area, "Tipo"=vecA)
+pT<-rbind(p1,p2)
+ggplot(pT,aes(year,Valor, group=Tipo, colour=Tipo))+geom_line()+
+geom_point(size=2, shape=21, fill="white")+
+theme_minimal()+labs(title="Linear comparison between area and production",y="value")
+
+```
+Para nuestro segundo analisis, correpondiente al punto:
+Prueba de hipótesis: ¿Son iguales las varianzas de la producción con la del área de cultivo?
+
+La función ```qqnorm()```nos permitió transformar los valores del area y la producción a los correspondientes de una distribución normal, para su grafica de disperión lineal, y ver si estos corresponden con base a la dispersión en sus puntos a una población normal.
+
+```{r}
+q1<-qqnorm(Art$Area, plot.it = FALSE)
+q2<-qqnorm(Art$production, plot.it = FALSE)
+
+plot(range(q1$x,q2$x), range(q1$y,q2$y), type = "n", las=1,
+xlab="Theorical Quantiles", ylab="Sample Quantiles")
+title("Dispersion of area and production")
+points(q1, pch=19)
+points(q2, col='red', pch=19)
+qqline(Art$Area, lty="dashed")
+qqline(Art$production, col='red',lty="dashed")
+legend('right', legend=c('Area','Production'), 
+       bty='O', col=c('black','red'),pch=19, title = "Legend",cex=0.75)
+```
+
+Para ver de forma mas formal si los datos son correspondientes a una población normal, se hizo uso de la función ```lillie.test()```, en la cual se extrajo el p-valor, el cual dtermina lo que se quiere.
+```{r}
+lillie.test(Art$Area)$p.value
+lillie.test(Art$production)$p.value
+```
+
+Luego se procedió a realizar el test, para determinar con el p-valor si se aceptaba la hipotesis nula o si no se aceptaba, de igual forma con la hipotesis alternativa.
+
+```{r}
+x=var.test(Art$Area,Art$production, null.value=1,alternative = "two.sided", conf.level = 0.95)
+cat(sprintf("el p valor es: %f",x$p.value))
+```
+
+Luego de determinar que hipotesis rechazar y que hipotesis aceptar, se realizo un histograma de los dos objetos de estudio para ver su media de forma visual y su desviación estandar.
+se hizo uso de ```layout()```para dividir la pantalla y que se mostrara en una sola imagen las dos graficas.
+```{r}
+layout(matrix(c(1:2),nrow=1, byrow=FALSE))
+layout.show(2)
+hist(q1$x, main = "Histograma de la
+distribución normal
+para el area", xlab = "Area")
+hist(q2$x, main = "Histograma de la
+distribución normal
+para la producción", xlab = "Production")
+```
+
+Luego, se realizó un proceso similar al de la grafica de dispersión con los datos transformados a una distribución normal; sin embargo, en este caso se multiplico el area para ver de cerca y comparar mejor los dos objetos de estudio. Cabe mencionar que se hizo uso de  ```layout()``` nuevamente para devolver los datos la división de pantalla anterior.
+```{r}
+q1<-qqnorm(Art$Area*10, plot.it = FALSE)
+q2<-qqnorm(Art$production, plot.it = FALSE)
+
+layout(matrix(c(1,1),nrow=1, byrow=FALSE))
+plot(range(q1$x,q2$x), range(q1$y,q2$y), type = "n", las=1,
+xlab="Theorical Quantiles", ylab="Sample Quantiles")
+title("Dispersion of area and production with 
+          area values halved")
+points(q1, pch=19)
+points(q2, col='red', pch=19)
+qqline(Art$Area*10, lty="dashed")
+qqline(Art$production, col='red',lty="dashed")
+legend('topleft', legend=c('Area','Production'),
+       bty='o', col=c('black','red'),pch=19, title = "Legend", cex = 0.8)
+
+```
+
+Para la proporción de la producción (Bultos de 60kg) por el Área cultivada(hectáreas) lo que se hizo fue crear un nuevo data frame que incluyera los datos de area y de la producción junto con los años, para posteriormente incluir una nueva columna de la proporción entre producción y area:
+
+```{r}
+Art<- data.frame("year"=c(2002:2021), "Area"=c(as.numeric(ArT[1,])))
+Art$production=prdT1$production
+Art1=Art
+Art1<-within(Art1,'Bultos/Hectareas(p/a)'<-Art1$production/Art1$Area)
+```
+Este proceso se puede visualizar en la siguiente grafica:
+
+```{r Art1}
+kable(Art1,align='c',caption="Proporción de bultos por hectarea en los años 2002-2021")
+```
+
+Posteriormente, extrajimos los datos de la nueva columna incluida para determinar la media a lo largo de los años y poder usarlo como parametro determinante de cumplimiento o incumplimiento en cada uno de los años.
+```{r}
+mean(Art1$`Bultos/Hectareas(p/a)`)
+
+sd(Art1$`Bultos/Hectareas(p/a)`)
+```
+
+Luego creamos un boxplot para visualizar la pocisión de los datos en base a su media, y ver que tandos datos habian superado esta. para esta visualización conservamos los puntos dentro de la grafica.
+
+```{r}
+ggplot(Art1,aes(y=`Bultos/Hectareas(p/a)`,x= year,color=`Bultos/Hectareas(p/a)`))+geom_boxplot()+
+geom_point(position = position_jitter(width=.2), stroke=.9, shape=1, size=1)+
+labs(y="Bultos/Hectareas")+ 
+  ggtitle("Box plot of production by area between 2002-2021")+
+  theme(plot.title=element_text(hjust=0.5))
+```
+Para la pregunta: ¿Relación entre el area y la exportación?
+Se realizo un grafico de dispersión con linea de tendencia, en donde se incluyo una nueva columna en uno de los data frame anteriores el cual se llama Art, cuya nueva columna corresponde a los datos de la exportación anuales de 2002 a 2021.
+Obteniedo esto se procedio a realizar la grafica de dispersión y con ayuda de la función ```cor()```poder determinar el coeficiente de correlación de pearson para definir si los datos se podian ajustar a un modelo de regresión lineal.
+```{r}
+Art$Export=ExpT$Export
+
+
+ggplot(Art, aes(Area,Export))+geom_point()+
+geom_smooth(method="lm", colour="Red")+
+labs(x="Area", y="Export")+
+ggtitle("Scatter plot with trend line between exports and area" )+
+  theme(plot.title=element_text(hjust=0.5))
+cor(x=Art$Area,y=Art$Export)
+```
+De esta forma llegamos al final del proyecto realizado, esperamos y sea de su agrado.
+
